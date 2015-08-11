@@ -42,44 +42,63 @@ void create_message(std::vector<std::pair<sample::contact_info_key, sample::cont
     }
 }
 
-void encode_messages(const std::vector<std::pair<sample::contact_info_key, sample::contact_info>>& src, int32_t key_id, int32_t value_id, std::vector<std::shared_ptr<csi::kafka::basic_message>>& dst)
+void encode_messages(confluent::codec* codec, const std::vector<std::pair<sample::contact_info_key, sample::contact_info>>& src, int32_t key_id, int32_t value_id, std::vector<std::shared_ptr<csi::kafka::basic_message>>& dst)
 {
 	dst.reserve(src.size());
 	for (std::vector<std::pair<sample::contact_info_key, sample::contact_info>>::const_iterator i = src.begin(); i != src.end(); ++i)
 	{
 		std::shared_ptr<csi::kafka::basic_message> msg(new csi::kafka::basic_message());
 
-		//encode key
-		{
-			auto ostr = avro::memoryOutputStream();
-			csi::avro_binary_encode_with_schema_id(key_id, i->first, *ostr);
-			size_t sz = ostr->byteCount();
+		////encode key
+		//{
+		//	auto ostr = avro::memoryOutputStream();
+  //          codec->encode_nonblock(key_id, i->first, *ostr);
+		//	size_t sz = ostr->byteCount();
 
-			auto in = avro::memoryInputStream(*ostr);
-			avro::StreamReader stream_reader(*in);
-			msg->key.set_null(false);
-			msg->key.resize(sz);
-			stream_reader.readBytes(msg->key.data(), sz);
-		}
+		//	auto in = avro::memoryInputStream(*ostr);
+		//	avro::StreamReader stream_reader(*in);
+		//	msg->key.set_null(false);
+		//	msg->key.resize(sz);
+		//	stream_reader.readBytes(msg->key.data(), sz);
+		//}
 
-		//encode value
-		{
-			auto ostr = avro::memoryOutputStream();
-			csi::avro_binary_encode_with_schema_id(value_id, i->second, *ostr);
-			size_t sz = ostr->byteCount();
+        //encode key
+        {
+            auto inputStream = codec->encode_nonblock(key_id, i->first);
+            size_t sz = inputStream->byteCount();
+            avro::StreamReader stream_reader(*inputStream);
+            msg->key.set_null(false);
+            msg->key.resize(sz);
+            stream_reader.readBytes(msg->key.data(), sz);
+        }
 
-			auto in = avro::memoryInputStream(*ostr);
-			avro::StreamReader stream_reader(*in);
-			msg->value.set_null(false);
-			msg->value.resize(sz);
-			stream_reader.readBytes(msg->value.data(), sz);
-		}
+		////encode value
+		//{
+		//	auto ostr = avro::memoryOutputStream();
+  //          codec->encode_nonblock(value_id, i->second, *ostr);
+		//	size_t sz = ostr->byteCount();
+
+		//	auto in = avro::memoryInputStream(*ostr);
+		//	avro::StreamReader stream_reader(*in);
+		//	msg->value.set_null(false);
+		//	msg->value.resize(sz);
+		//	stream_reader.readBytes(msg->value.data(), sz);
+		//}
+
+        //encode value
+        {
+            auto inputStream = codec->encode_nonblock(value_id, i->second);
+            size_t sz = inputStream->byteCount();
+            avro::StreamReader stream_reader(*inputStream);
+            msg->value.set_null(false);
+            msg->value.resize(sz);
+            stream_reader.readBytes(msg->value.data(), sz);
+        }
 		dst.push_back(msg);
 	}
 }
 
-
-void send_messages(int32_t key_id, int32_t val_id, csi::kafka::highlevel_producer& producer, int id)
+void send_messages(confluent::codec* codec, int32_t key_id, int32_t val_id, csi::kafka::highlevel_producer& producer, int id)
 {
 	int32_t cursor = 0;
 	std::vector<std::pair<sample::contact_info_key, sample::contact_info>> v;
@@ -88,7 +107,7 @@ void send_messages(int32_t key_id, int32_t val_id, csi::kafka::highlevel_produce
 	while (true)
 	{
 		std::vector<std::shared_ptr<csi::kafka::basic_message>> v2;
-		encode_messages(v, key_id, val_id, v2);
+		encode_messages(codec, v, key_id, val_id, v2);
 		int32_t ec = producer.send_sync(v2);
 		std::cerr << id;
 		if (cursor > 10000000)
@@ -170,9 +189,9 @@ int main(int argc, char** argv)
 	
 	for (int i = 0; i != 10; ++i)
 	{
-		threads.emplace_back(new boost::thread([key_res, val_res, &producer, i]
+        threads.emplace_back(new boost::thread([&avro_codec, key_res, val_res, &producer, i]
 		{
-			send_messages(key_res.second, val_res.second, producer, i);
+            send_messages(&avro_codec, key_res.second, val_res.second, producer, i);
 		}));
 	}
 

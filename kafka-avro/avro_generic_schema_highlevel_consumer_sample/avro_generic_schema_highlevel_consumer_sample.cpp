@@ -46,7 +46,7 @@ int main(int argc, char** argv)
 
     consumer.set_offset(csi::kafka::earliest_available_offset);
 
-	boost::thread do_log([&consumer]
+	/*boost::thread do_log([&consumer]
 	{
 		while (true)
 		{
@@ -62,7 +62,7 @@ int main(int argc, char** argv)
 			}
 			std::cerr << "\t\t" << rx_msg_sec_total << " msg/s \t" << (rx_kb_sec_total / 1024) << "MB/s" << std::endl;
 		}
-	});
+	});*/
 
 	// generic decoding
 	while (true)
@@ -78,16 +78,18 @@ int main(int argc, char** argv)
 					// decode key
 					if (!(*j)->key.is_null())
 					{
-						std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->key[0], (*j)->key.size());
-						auto res = avro_codec.decode_datum(&*stream);
-						// do something with key...
+						//std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->key[0], (*j)->key.size());
+						//auto res = avro_codec.decode_datum(&*stream);
+                        auto res = avro_codec.decode_datum(&(*j)->key[0], (*j)->key.size());
+                        // do something with key...
 					}
 
 					//decode value
 					if (!(*j)->value.is_null())
 					{
-						std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->value[0], (*j)->value.size());
-						auto res = avro_codec.decode_datum(&*stream);
+						//std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->value[0], (*j)->value.size());
+						//auto res = avro_codec.decode_datum(&*stream);
+                        auto res = avro_codec.decode_datum(&(*j)->value[0], (*j)->value.size());
 					}
 				} // message
 			} // has data

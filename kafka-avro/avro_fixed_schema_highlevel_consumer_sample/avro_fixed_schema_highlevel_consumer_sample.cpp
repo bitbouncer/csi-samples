@@ -78,7 +78,7 @@ int main(int argc, char** argv)
 	std::cerr << "registring schemas done" << std::endl;
 
 
-	boost::thread do_log([&consumer]
+	/*boost::thread do_log([&consumer]
 	{
 		while (true)
 		{
@@ -94,7 +94,7 @@ int main(int argc, char** argv)
 			}
 			std::cerr << "\t\t" << rx_msg_sec_total << " msg/s \t" << (rx_kb_sec_total / 1024) << "MB/s" << std::endl;
 		}
-	});
+	});*/
 
 	int32_t key_id = key_res.second;
 	int32_t val_id = val_res.second;
@@ -122,19 +122,16 @@ int main(int argc, char** argv)
 					// decode key
 					if (!(*j)->key.is_null())
 					{
-						key = std::make_shared<sample::contact_info_key>();
-						std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->key[0], (*j)->key.size());
-						has_key = avro_codec.decode_static(&*stream, key_id, *key);
-
+						key     = std::make_shared<sample::contact_info_key>();
+                        has_key = avro_codec.decode_static(&(*j)->key[0], (*j)->key.size(), key_id, *key);
 						//do something with key...
 					}
 
 					//decode value
 					if (!(*j)->value.is_null())
 					{
-						value = std::make_shared<sample::contact_info>();
-						std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->value[0], (*j)->value.size());
-						has_val = avro_codec.decode_static(&*stream, val_id, *value);
+						value   = std::make_shared<sample::contact_info>();
+                        has_val = avro_codec.decode_static(&(*j)->value[0], (*j)->value.size(), val_id, *value);
 					}
 
 					if (has_key)

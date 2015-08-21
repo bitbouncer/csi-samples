@@ -46,7 +46,7 @@ int main(int argc, char** argv)
 
     consumer.set_offset(csi::kafka::earliest_available_offset);
 
-	/*boost::thread do_log([&consumer]
+	boost::thread do_log([&consumer]
 	{
 		while (true)
 		{
@@ -62,7 +62,7 @@ int main(int argc, char** argv)
 			}
 			std::cerr << "\t\t" << rx_msg_sec_total << " msg/s \t" << (rx_kb_sec_total / 1024) << "MB/s" << std::endl;
 		}
-	});*/
+	});
 
 	// generic decoding
 	while (true)

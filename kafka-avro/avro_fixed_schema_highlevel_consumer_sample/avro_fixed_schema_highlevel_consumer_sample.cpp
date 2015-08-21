@@ -78,7 +78,7 @@ int main(int argc, char** argv)
 	std::cerr << "registring schemas done" << std::endl;
 
 
-	/*boost::thread do_log([&consumer]
+	boost::thread do_log([&consumer]
 	{
 		while (true)
 		{
@@ -94,7 +94,7 @@ int main(int argc, char** argv)
 			}
 			std::cerr << "\t\t" << rx_msg_sec_total << " msg/s \t" << (rx_kb_sec_total / 1024) << "MB/s" << std::endl;
 		}
-	});*/
+	});
 
 	int32_t key_id = key_res.second;
 	int32_t val_id = val_res.second;

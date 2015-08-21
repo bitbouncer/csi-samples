@@ -49,47 +49,23 @@ void encode_messages(confluent::codec* codec, const std::vector<std::pair<sample
 	{
 		std::shared_ptr<csi::kafka::basic_message> msg(new csi::kafka::basic_message());
 
-		////encode key
-		//{
-		//	auto ostr = avro::memoryOutputStream();
-  //          codec->encode_nonblock(key_id, i->first, *ostr);
-		//	size_t sz = ostr->byteCount();
-
-		//	auto in = avro::memoryInputStream(*ostr);
-		//	avro::StreamReader stream_reader(*in);
-		//	msg->key.set_null(false);
-		//	msg->key.resize(sz);
-		//	stream_reader.readBytes(msg->key.data(), sz);
-		//}
-
         //encode key
         {
-            auto inputStream = codec->encode_nonblock(key_id, i->first);
-            size_t sz = inputStream->byteCount();
-            avro::StreamReader stream_reader(*inputStream);
+            auto os = codec->encode_nonblock(key_id, i->first);
+			size_t sz = os->byteCount();
+			auto is = avro::memoryInputStream(*os);
+			avro::StreamReader stream_reader(*is);
             msg->key.set_null(false);
             msg->key.resize(sz);
             stream_reader.readBytes(msg->key.data(), sz);
         }
 
-		////encode value
-		//{
-		//	auto ostr = avro::memoryOutputStream();
-  //          codec->encode_nonblock(value_id, i->second, *ostr);
-		//	size_t sz = ostr->byteCount();
-
-		//	auto in = avro::memoryInputStream(*ostr);
-		//	avro::StreamReader stream_reader(*in);
-		//	msg->value.set_null(false);
-		//	msg->value.resize(sz);
-		//	stream_reader.readBytes(msg->value.data(), sz);
-		//}
-
-        //encode value
+	    //encode value
         {
-            auto inputStream = codec->encode_nonblock(value_id, i->second);
-            size_t sz = inputStream->byteCount();
-            avro::StreamReader stream_reader(*inputStream);
+            auto os = codec->encode_nonblock(value_id, i->second);
+            size_t sz = os->byteCount();
+			auto is = avro::memoryInputStream(*os);
+            avro::StreamReader stream_reader(*is);
             msg->value.set_null(false);
             msg->value.resize(sz);
             stream_reader.readBytes(msg->value.data(), sz);

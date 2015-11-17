@@ -188,9 +188,10 @@ int main(int argc, char** argv)
     }
     else
     {
-        brokers.push_back(csi::kafka::broker_address("192.168.0.102", kafka_port)); // my home cluster...
-        brokers.push_back(csi::kafka::broker_address("127.0.0.1", kafka_port));
-    }
+		brokers.push_back(csi::kafka::broker_address("f013-520-kafka.internal.machines", kafka_port));
+		brokers.push_back(csi::kafka::broker_address("f014-520-kafka.internal.machines", kafka_port));
+		brokers.push_back(csi::kafka::broker_address("f015-520-kafka.internal.machines", kafka_port));
+	}
 
     boost::asio::io_service ios;
     try

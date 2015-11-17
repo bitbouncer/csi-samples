@@ -104,9 +104,9 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		brokers.push_back(csi::kafka::broker_address("192.168.0.115", kafka_port));
-		brokers.push_back(csi::kafka::broker_address("192.168.0.116", kafka_port));
-		brokers.push_back(csi::kafka::broker_address("192.168.0.117", kafka_port));
+		brokers.push_back(csi::kafka::broker_address("f013-520-kafka.internal.machines", kafka_port));
+		brokers.push_back(csi::kafka::broker_address("f014-520-kafka.internal.machines", kafka_port));
+		brokers.push_back(csi::kafka::broker_address("f015-520-kafka.internal.machines", kafka_port));
 	}
 	    
 	boost::asio::io_service fg_ios;
@@ -114,7 +114,7 @@ int main(int argc, char** argv)
 	boost::thread fg(boost::bind(&boost::asio::io_service::run, &fg_ios));
 
 	csi::kafka::highlevel_producer producer(fg_ios, "csi.dev.avro_highlevel_producer_sample", -1, 200, 1000000);
-	confluent::registry            registry(fg_ios, "192.168.0.115:8081");
+	confluent::registry            registry(fg_ios, "f013-520-kafka.internal.machines:8081");
 	confluent::codec               avro_codec(registry);
 
 	producer.connect(brokers);

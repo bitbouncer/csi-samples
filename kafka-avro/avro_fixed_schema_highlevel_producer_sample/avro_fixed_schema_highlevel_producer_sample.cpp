@@ -15,8 +15,6 @@
 #include "contact_info.h"
 #include "contact_info_key.h"
 
-#include <csi_avro_utils/avro_schema_id_encoding.h>
-
 void create_message(std::vector<std::pair<sample::contact_info_key, sample::contact_info>>& v, int32_t& cursor)
 {
     v.clear();
@@ -42,7 +40,7 @@ void create_message(std::vector<std::pair<sample::contact_info_key, sample::cont
     }
 }
 
-void encode_messages(confluent::codec* codec, const std::vector<std::pair<sample::contact_info_key, sample::contact_info>>& src, int32_t key_id, int32_t value_id, std::vector<std::shared_ptr<csi::kafka::basic_message>>& dst)
+void encode_messages(confluent::codec& codec, const std::vector<std::pair<sample::contact_info_key, sample::contact_info>>& src, int32_t key_id, int32_t value_id, std::vector<std::shared_ptr<csi::kafka::basic_message>>& dst)
 {
 	dst.reserve(src.size());
 	for (std::vector<std::pair<sample::contact_info_key, sample::contact_info>>::const_iterator i = src.begin(); i != src.end(); ++i)
@@ -51,7 +49,7 @@ void encode_messages(confluent::codec* codec, const std::vector<std::pair<sample
 
         //encode key
         {
-            auto os = codec->encode_nonblock(key_id, i->first);
+            auto os = codec.encode_nonblock(key_id, i->first);
 			size_t sz = os->byteCount();
 			auto is = avro::memoryInputStream(*os);
 			avro::StreamReader stream_reader(*is);
@@ -62,7 +60,7 @@ void encode_messages(confluent::codec* codec, const std::vector<std::pair<sample
 
 	    //encode value
         {
-            auto os = codec->encode_nonblock(value_id, i->second);
+            auto os = codec.encode_nonblock(value_id, i->second);
             size_t sz = os->byteCount();
 			auto is = avro::memoryInputStream(*os);
             avro::StreamReader stream_reader(*is);
@@ -74,7 +72,7 @@ void encode_messages(confluent::codec* codec, const std::vector<std::pair<sample
 	}
 }
 
-void send_messages(confluent::codec* codec, int32_t key_id, int32_t val_id, csi::kafka::highlevel_producer& producer, int id)
+void send_messages(confluent::codec& codec, int32_t key_id, int32_t val_id, csi::kafka::highlevel_producer& producer, int id)
 {
 	int32_t cursor = 0;
 	std::vector<std::pair<sample::contact_info_key, sample::contact_info>> v;
@@ -167,7 +165,7 @@ int main(int argc, char** argv)
 	{
         threads.emplace_back(new boost::thread([&avro_codec, key_res, val_res, &producer, i]
 		{
-            send_messages(&avro_codec, key_res.second, val_res.second, producer, i);
+            send_messages(avro_codec, key_res.second, val_res.second, producer, i);
 		}));
 	}
 

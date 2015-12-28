@@ -169,7 +169,7 @@ int main(int argc, char** argv)
 				rx_msg_sec_total += (*i).rx_msg_sec;
 				rx_kb_sec_total += (*i).rx_kb_sec;
 			}
-			std::cerr << "\t\t" << rx_msg_sec_total << " msg/s \t" << (rx_kb_sec_total / 1024) << "MB/s" << std::endl;
+            BOOST_LOG_TRIVIAL(info) << "\t\t" << rx_msg_sec_total << " msg/s \t" << (rx_kb_sec_total / 1024) << "MB/s";
 		}
 	});
 

@@ -179,10 +179,16 @@ int main(int argc, char** argv)
         auto r = consumer.fetch();
         for (std::vector<csi::kafka::rpc_result<csi::kafka::fetch_response>>::const_iterator i = r.begin(); i != r.end(); ++i)
         {
+            if (i->ec)
+                continue; // or die??
+
             for (std::vector<csi::kafka::fetch_response::topic_data>::const_iterator j = (*i)->topics.begin(); j != (*i)->topics.end(); ++j)
             {
                 for (std::vector<std::shared_ptr<csi::kafka::fetch_response::topic_data::partition_data>>::const_iterator k = j->partitions.begin(); k != j->partitions.end(); ++k)
                 {
+                    if ((*k)->error_code)
+                        continue; // or die??
+
                     for (std::vector<std::shared_ptr<csi::kafka::basic_message>>::const_iterator m = (*k)->messages.begin(); m != (*k)->messages.end(); ++m)
                     {
                         // decode key

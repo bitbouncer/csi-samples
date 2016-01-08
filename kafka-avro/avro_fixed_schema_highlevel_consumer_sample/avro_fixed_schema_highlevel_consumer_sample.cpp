@@ -148,16 +148,16 @@ int main(int argc, char** argv)
     BOOST_LOG_TRIVIAL(info) << "schema_registry(s)  : " << schema_registrys_info;
     BOOST_LOG_TRIVIAL(info) << "used schema registry: " << used_schema_registry;
 
-	boost::asio::io_service fg_ios;
-	std::auto_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(fg_ios));
-	boost::thread fg(boost::bind(&boost::asio::io_service::run, &fg_ios));
+    boost::asio::io_service fg_ios;
+    std::auto_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(fg_ios));
+    boost::thread fg(boost::bind(&boost::asio::io_service::run, &fg_ios));
 
-	csi::kafka::highlevel_consumer consumer(fg_ios, topic, 20, 10000);
+    csi::kafka::highlevel_consumer consumer(fg_ios, topic, 20, 10000);
     confluent::registry            registry(fg_ios, used_schema_registry);
-	confluent::codec               avro_codec(registry);
+    confluent::codec               avro_codec(registry);
 
 
-	csi::kafka::table<sample::contact_info_key, sample::contact_info, contact_info_key_compare> datastore;
+    csi::kafka::table<sample::contact_info_key, sample::contact_info, contact_info_key_compare> datastore;
 
     int64_t message_total = 0;
 
@@ -169,99 +169,101 @@ int main(int argc, char** argv)
 
 
     BOOST_LOG_TRIVIAL(info) << "registring schemas";
-	auto key_res = avro_codec.put_schema("sample.contact_info_key", sample::contact_info_key::valid_schema());
+    auto key_res = avro_codec.put_schema("sample.contact_info_key", sample::contact_info_key::valid_schema());
 
-	if (key_res.first != 0)
-	{
+    if (key_res.first != 0)
+    {
         BOOST_LOG_TRIVIAL(error) << "registring sample.contact_info_key failed";
-		return -1;
-	}
-	auto val_res = avro_codec.put_schema("sample.contact_info", sample::contact_info::valid_schema());
-	if (val_res.first != 0)
-	{
+        return -1;
+    }
+    auto val_res = avro_codec.put_schema("sample.contact_info", sample::contact_info::valid_schema());
+    if (val_res.first != 0)
+    {
         BOOST_LOG_TRIVIAL(error) << "registring sample.contact_info failed";
-		return -1;
-	}
+        return -1;
+    }
     BOOST_LOG_TRIVIAL(info) << "registring schemas done";
 
-	boost::thread do_log([&consumer]
-	{
-		while (true)
-		{
-			boost::this_thread::sleep(boost::posix_time::seconds(1));
+    boost::thread do_log([&consumer]
+    {
+        while (true)
+        {
+            boost::this_thread::sleep(boost::posix_time::seconds(1));
 
-			std::vector<csi::kafka::highlevel_consumer::metrics>  metrics = consumer.get_metrics();
-			uint32_t rx_msg_sec_total = 0;
-			uint32_t rx_kb_sec_total = 0;
-			for (std::vector<csi::kafka::highlevel_consumer::metrics>::const_iterator i = metrics.begin(); i != metrics.end(); ++i)
-			{
-				rx_msg_sec_total += (*i).rx_msg_sec;
-				rx_kb_sec_total += (*i).rx_kb_sec;
-			}
+            std::vector<csi::kafka::highlevel_consumer::metrics>  metrics = consumer.get_metrics();
+            uint32_t rx_msg_sec_total = 0;
+            uint32_t rx_kb_sec_total = 0;
+            for (std::vector<csi::kafka::highlevel_consumer::metrics>::const_iterator i = metrics.begin(); i != metrics.end(); ++i)
+            {
+                rx_msg_sec_total += (*i).rx_msg_sec;
+                rx_kb_sec_total += (*i).rx_kb_sec;
+            }
             BOOST_LOG_TRIVIAL(info) << "\t\t" << rx_msg_sec_total << " msg/s \t" << (rx_kb_sec_total / 1024) << "MB/s";
-		}
-	});
+        }
+    });
 
-	int32_t key_id = key_res.second;
-	int32_t val_id = val_res.second;
-	
-	while (true)
-	{
-		auto r = consumer.fetch();
-		size_t nr_of_msg = 0;
-		for (std::vector<csi::kafka::highlevel_consumer::fetch_response>::const_iterator i = r.begin(); i != r.end(); ++i)
-		{
-			if ((*i).data)
-			{
-				const std::vector<std::shared_ptr<csi::kafka::basic_message>>& messages((*i).data->messages);
-				nr_of_msg += messages.size();
+    int32_t key_id = key_res.second;
+    int32_t val_id = val_res.second;
+
+    while (true)
+    {
+        auto r = consumer.fetch();
+        size_t nr_of_msg = 0;
+        for (std::vector<csi::kafka::rpc_result<csi::kafka::fetch_response>>::const_iterator i = r.begin(); i != r.end(); ++i)
+        {
+            for (std::vector<csi::kafka::fetch_response::topic_data>::const_iterator j = (*i)->topics.begin(); j != (*i)->topics.end(); ++j)
+            {
+                for (std::vector<std::shared_ptr<csi::kafka::fetch_response::topic_data::partition_data>>::const_iterator k = j->partitions.begin(); k != j->partitions.end(); ++k)
+                {
+                    nr_of_msg += (*k)->messages.size();
 
 
-				std::shared_ptr<sample::contact_info_key> key;
-				std::shared_ptr<sample::contact_info>     value;
+                    std::shared_ptr<sample::contact_info_key> key;
+                    std::shared_ptr<sample::contact_info>     value;
 
-				bool has_key = false;
-				bool has_val = false;
+                    bool has_key = false;
+                    bool has_val = false;
 
-				for (std::vector<std::shared_ptr<csi::kafka::basic_message>>::const_iterator j = messages.begin(); j != messages.end(); ++j)
-				{
-					// decode key
-					if (!(*j)->key.is_null())
-					{
-						key     = std::make_shared<sample::contact_info_key>();
-                        has_key = avro_codec.decode_static(&(*j)->key[0], (*j)->key.size(), key_id, *key);
-						//do something with key...
-					}
+                    for (std::vector<std::shared_ptr<csi::kafka::basic_message>>::const_iterator m = (*k)->messages.begin(); m != (*k)->messages.end(); ++m)
+                    {
+                        // decode key
+                        if (!(*m)->key.is_null())
+                        {
+                            key = std::make_shared<sample::contact_info_key>();
+                            has_key = avro_codec.decode_static(&(*m)->key[0], (*m)->key.size(), key_id, *key);
+                            //do something with key...
+                        }
 
-					//decode value
-					if (!(*j)->value.is_null())
-					{
-						value   = std::make_shared<sample::contact_info>();
-                        has_val = avro_codec.decode_static(&(*j)->value[0], (*j)->value.size(), val_id, *value);
-					}
+                        //decode value
+                        if (!(*m)->value.is_null())
+                        {
+                            value = std::make_shared<sample::contact_info>();
+                            has_val = avro_codec.decode_static(&(*m)->value[0], (*m)->value.size(), val_id, *value);
+                        }
 
-					if (has_key)
-					{
-						if (has_val)
-						{
-							datastore.put(*key, value);
-						}
-						else
-						{
-							datastore.put(*key, std::shared_ptr<sample::contact_info>());
-						}
-					}
-				} // message
-			} // has data
-		} // per connection
-	}
+                        if (has_key)
+                        {
+                            if (has_val)
+                            {
+                                datastore.put(*key, value);
+                            }
+                            else
+                            {
+                                datastore.put(*key, std::shared_ptr<sample::contact_info>());
+                            }
+                        }
+                    } // message
+                } // partition
+            } //topic
+        } // per connection
+    }
 
-	while (true)
-	{
-		boost::this_thread::sleep(boost::posix_time::seconds(1));
-	}
-	
-	work.reset();
-	fg_ios.stop();
+    while (true)
+    {
+        boost::this_thread::sleep(boost::posix_time::seconds(1));
+    }
+
+    work.reset();
+    fg_ios.stop();
     return EXIT_SUCCESS;
 }

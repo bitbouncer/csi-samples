@@ -140,13 +140,13 @@ int main(int argc, char** argv)
     BOOST_LOG_TRIVIAL(info) << "schema_registry(s)  : " << schema_registrys_info;
     BOOST_LOG_TRIVIAL(info) << "used schema registry: " << used_schema_registry;
 
-	boost::asio::io_service fg_ios;
-	std::auto_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(fg_ios));
-	boost::thread fg(boost::bind(&boost::asio::io_service::run, &fg_ios));
+    boost::asio::io_service fg_ios;
+    std::auto_ptr<boost::asio::io_service::work> work(new boost::asio::io_service::work(fg_ios));
+    boost::thread fg(boost::bind(&boost::asio::io_service::run, &fg_ios));
 
-	csi::kafka::highlevel_consumer consumer(fg_ios, topic, 20, 10000);
+    csi::kafka::highlevel_consumer consumer(fg_ios, topic, 20, 10000);
     confluent::registry            registry(fg_ios, used_schema_registry);
-	confluent::codec               avro_codec(registry);
+    confluent::codec               avro_codec(registry);
 
     int64_t message_total = 0;
 
@@ -155,57 +155,57 @@ int main(int argc, char** argv)
 
     consumer.set_offset(csi::kafka::earliest_available_offset);
 
-	boost::thread do_log([&consumer]
-	{
-		while (true)
-		{
-			boost::this_thread::sleep(boost::posix_time::seconds(1));
+    boost::thread do_log([&consumer]
+    {
+        while (true)
+        {
+            boost::this_thread::sleep(boost::posix_time::seconds(1));
 
-			std::vector<csi::kafka::highlevel_consumer::metrics>  metrics = consumer.get_metrics();
-			uint32_t rx_msg_sec_total = 0;
-			uint32_t rx_kb_sec_total = 0;
-			for (std::vector<csi::kafka::highlevel_consumer::metrics>::const_iterator i = metrics.begin(); i != metrics.end(); ++i)
-			{
-				rx_msg_sec_total += (*i).rx_msg_sec;
-				rx_kb_sec_total += (*i).rx_kb_sec;
-			}
+            std::vector<csi::kafka::highlevel_consumer::metrics>  metrics = consumer.get_metrics();
+            uint32_t rx_msg_sec_total = 0;
+            uint32_t rx_kb_sec_total = 0;
+            for (std::vector<csi::kafka::highlevel_consumer::metrics>::const_iterator i = metrics.begin(); i != metrics.end(); ++i)
+            {
+                rx_msg_sec_total += (*i).rx_msg_sec;
+                rx_kb_sec_total += (*i).rx_kb_sec;
+            }
             BOOST_LOG_TRIVIAL(info) << "\t\t" << rx_msg_sec_total << " msg/s \t" << (rx_kb_sec_total / 1024) << "MB/s";
-		}
-	});
+        }
+    });
 
-	// generic decoding
-	while (true)
-	{
-		auto r = consumer.fetch();
-		for (std::vector<csi::kafka::highlevel_consumer::fetch_response>::const_iterator i = r.begin(); i != r.end(); ++i)
-		{
-			if ((*i).data)
-			{
-				const std::vector<std::shared_ptr<csi::kafka::basic_message>>& messages((*i).data->messages);
-				for (std::vector<std::shared_ptr<csi::kafka::basic_message>>::const_iterator j = messages.begin(); j != messages.end(); ++j)
-				{
-					// decode key
-					if (!(*j)->key.is_null())
-					{
-						//std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->key[0], (*j)->key.size());
-						//auto res = avro_codec.decode_datum(&*stream);
-                        auto res = avro_codec.decode_datum(&(*j)->key[0], (*j)->key.size());
-                        // do something with key...
-					}
+    // generic decoding
+    while (true)
+    {
+        auto r = consumer.fetch();
+        for (std::vector<csi::kafka::rpc_result<csi::kafka::fetch_response>>::const_iterator i = r.begin(); i != r.end(); ++i)
+        {
+            for (std::vector<csi::kafka::fetch_response::topic_data>::const_iterator j = (*i)->topics.begin(); j != (*i)->topics.end(); ++j)
+            {
+                for (std::vector<std::shared_ptr<csi::kafka::fetch_response::topic_data::partition_data>>::const_iterator k = j->partitions.begin(); k != j->partitions.end(); ++k)
+                {
+                    for (std::vector<std::shared_ptr<csi::kafka::basic_message>>::const_iterator m = (*k)->messages.begin(); m != (*k)->messages.end(); ++m)
+                    {
+                        // decode key
+                        if (!(*m)->key.is_null())
+                        {
+                            auto res = avro_codec.decode_datum(&(*m)->key[0], (*m)->key.size());
+                            //do something with key...
+                        }
 
-					//decode value
-					if (!(*j)->value.is_null())
-					{
-						//std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->value[0], (*j)->value.size());
-						//auto res = avro_codec.decode_datum(&*stream);
-                        auto res = avro_codec.decode_datum(&(*j)->value[0], (*j)->value.size());
-					}
-				} // message
-			} // has data
-		} // per connection
-	}
+                        //decode value
+                        if (!(*m)->value.is_null())
+                        {
+                            //std::auto_ptr<avro::InputStream> stream = avro::memoryInputStream(&(*j)->value[0], (*j)->value.size());
+                            //auto res = avro_codec.decode_datum(&*stream);
+                            auto res = avro_codec.decode_datum(&(*m)->value[0], (*m)->value.size());
+                        }
+                    } // message
+                } // partition
+            } // topic
+        } // per connection
+    }
 
-	work.reset();
-	fg_ios.stop();
+    work.reset();
+    fg_ios.stop();
     return EXIT_SUCCESS;
 }
